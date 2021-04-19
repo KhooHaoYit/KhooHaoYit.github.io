@@ -22,7 +22,7 @@ const parseArea = ({ yStart, yEnd, xStart, xEnd, step, data }, mapper = _ => _) 
   return heatMapData;
 }
 const fetchAPI = api => {
-  return fetch(`./data/${api}`)
+  return fetch(`./data/${api}.json`)
     .then(res => res.json());
 }
 var updateHeatmap = async () => {
