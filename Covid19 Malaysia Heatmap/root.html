@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Malaysia Covid 19 Heatmap</title>
+    <script src="./main.js"></script>
+    <script defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDNgoFQmjwE8YVS4yu-nwO8htM01BBc9sQ&libraries=visualization&v=3&callback=initMap"></script>
+    <link rel="stylesheet" type="text/css" href="./style.css"/>
+  </head>
+  <body>
+    <div id="nav">
+      <a href="https://www.linkedin.com/in/khoohaoyit" target="_blank" class="nav-item float-left">LinkedIn</a>
+      <a href="https://www.patreon.com/KhooHaoYit" target="_blank" class="nav-item float-left">Patreon</a>
+      <button onclick="updateHeatmap()" class="nav-item float-right">Update Heatmap</button>
+      <button onclick="heatmapButton()" class="nav-item float-right" id="heatmapButton">Hide Heatmap</button>
+      <button onclick="locationButton()" class="nav-item float-right" id="locationButton">Show Location</button>
+    </div>
+    <div id="info">
+      <div id="lastUpdateAt" class="info-item float-left">Last update at: </div>
+      <div id="westUpdatedAt" class="info-item float-left">West Malaysia last updated on:</div>
+      <div id="eastUpdatedAt" class="info-item float-left">East Malaysia last updated on:</div>
+      <div class="info-item float-right">Heatmap is based on cases within 1 km radius accross 2 weeks</div>
+      <div class="info-item float-left">Heatmap has stopped updating due to unsustainable circumstances</div>
+    </div>
+    <div id="map"></div>
+  </body>
+</html>
