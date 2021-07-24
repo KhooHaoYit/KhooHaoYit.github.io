@@ -76,7 +76,7 @@ const generatePoints = ({ area, data }) => {
   return output;
 }
 
-var map = null, areas = null, largest = null, heatMapData = null, heatmap = null;
+var map = null, areas = null, largest = null, heatmaps = [];
 const fetchAPI = api => {
   return fetch(`./data/${api}.json`)
     .then(res => res.json());
@@ -85,19 +85,17 @@ var updateHeatmap = async () => {
   areas = await Promise.all(
     'east,west'.split(',').map(area => fetchAPI(area))
   );
-  heatMapData = [];
+  if(heatmaps.length) heatmaps.forEach(hm => hm.setMap(null));
   for(const area of areas){
-    const points = generatePoints(area);
-    heatMapData.push(...points);
+    const heatmap = new google.maps.visualization.HeatmapLayer({
+      data: generatePoints(area), dissipating: false, radius: 0.02
+    });
+    heatmaps.push(heatmap);
   }
-  if(heatmap) heatmap.setMap(null);
-  heatmap = new google.maps.visualization.HeatmapLayer({
-    data: heatMapData, dissipating: false, radius: 0.01
-  });
   document.getElementById('lastUpdateAt').innerText = `Last update at: ${new Date().toLocaleString()}`;
   document.getElementById('eastUpdatedAt').innerText = `East Malaysia last updated on: ${new Date(areas[0].updatedAt).toLocaleString()}`;
   document.getElementById('westUpdatedAt').innerText = `West Malaysia last updated on: ${new Date(areas[1].updatedAt).toLocaleString()}`;
-  if(document.getElementById('heatmapButton').textContent === 'Hide Heatmap') heatmap.setMap(map);
+  if(document.getElementById('heatmapButton').textContent === 'Hide Heatmap') heatmaps.forEach(hm => hm.setMap(map));
 }
 let userLocation = undefined;
 var locationButton = async () => {
@@ -143,15 +141,15 @@ var locationButton = async () => {
   }
 }
 var heatmapButton = () => {
-  if(map === null || heatmap === null) return;
+  if(map === null || heatmaps.length === 0) return;
   const button = document.getElementById('heatmapButton');
   switch(button.textContent){
     case 'Show Heatmap': {
-      heatmap.setMap(map);
+      heatmaps.forEach(hm => hm.setMap(map));
       button.textContent = 'Hide Heatmap';
     } break;
     case 'Hide Heatmap': {
-      heatmap.setMap(null);
+      heatmaps.forEach(hm => hm.setMap(null));
       button.textContent = 'Show Heatmap';
     } break;
   }
