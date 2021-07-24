@@ -85,7 +85,7 @@ var updateHeatmap = async () => {
   areas = await Promise.all(
     'east,west'.split(',').map(area => fetchAPI(area))
   );
-  heatmapData = [];
+  heatMapData = [];
   for(const area of areas){
     const points = generatePoints(area);
     heatMapData.push(...points);
