@@ -1,26 +1,82 @@
-var map = null, areas = null, largest = null, heatMapData = null, heatmap = null;
-const sort = [(largest, value) => value > largest ? value : largest, -Infinity];
-const parseArea = ({ yStart, yEnd, xStart, xEnd, step, data }, mapper = _ => _) => {
-  const heatMapData = [];
-  for(let yOffset = yStart, y = 0; yOffset <= yEnd; yOffset = +(yOffset + step).toFixed(5), ++y){
-    const row = data[y];
-    if(row === 0) continue;
-    for(let xOffset = xStart, x = 0; xOffset <= xEnd; xOffset = +(xOffset + step).toFixed(5), ++x){
-      if(row[x] === 0){
-        const repeat = row[x + 1];
-        xOffset += step * repeat;
-        continue;
-      }
-      const weight = mapper(row[x]);
-      if(weight === 0) continue;
-      heatMapData.push({
-        location: new google.maps.LatLng(yOffset, xOffset),
-        weight
-      });
-    }
+const calcRotation = degree => ({
+  xVector: {
+    x: Math.cos(degree / 180 * Math.PI),
+    y: Math.sin(degree / 180 * Math.PI)
+  },
+  yVector: {
+    x: Math.cos((degree + 90) / 180 * Math.PI),
+    y: Math.sin((degree + 90) / 180 * Math.PI)
   }
-  return heatMapData;
+});
+const squareFactory = function*(generator, width, height, step = 1, { x: xOffset, y: yOffset } = { x: 0, y: 0 }){
+  yield* generator;
+  for(let y = 0; y < height; ++y){
+    for(let x = 0; x < width; ++x){
+      yield [xOffset + x * step, yOffset + y * step];
+    } 
+  }
 }
+const rotationFactory = function*(generator, degree, { x: xAnchor, y: yAnchor } = { x: 0, y: 0 }){
+  const { xVector, yVector } = calcRotation(degree);
+  for(const [x, y] of generator){
+    let xAfter = xAnchor;
+    let yAfter = yAnchor;
+    const xOrigin = x - xAnchor;
+    const yOrigin = y - yAnchor;
+    xAfter += xVector.x * xOrigin;
+    yAfter += xVector.y * xOrigin;
+    xAfter += yVector.x * yOrigin;
+    yAfter += yVector.y * yOrigin;
+    yield [xAfter, yAfter];
+  }
+}
+const degreeToGradient = degree => Math.tan(degree / 180 * Math.PI);
+const filterLineXFactory = function*(generator, degree, { x: xOffset, y: yOffset }, below){
+  const gradient = degreeToGradient(degree);
+  for(const [x, y] of generator){
+    const xAnchor = x - xOffset;
+    const yAnchor = y - yOffset;
+    const expected = gradient * xAnchor;
+    const include = below ? expected <= yAnchor : expected >= yAnchor;
+    if(!include) continue;
+    yield [x, y];
+  }
+}
+const factories = {
+  square: squareFactory,
+  rotate: rotationFactory,
+  filterLineX: filterLineXFactory
+}
+const buildArea = function*(operations){
+  let lastGen = (function*(){})();
+  for(const op of operations){
+    const type = op.shift();
+    if(!(type in factories)) continue;
+    const factory = factories[type];
+    lastGen = factory(lastGen, ...op);
+  }
+  yield* lastGen;
+}
+const generatePoints = ({ area, data }) => {
+  const points = buildArea(area);
+  const output = [];
+  for(let index = 0; index < data.length; ++index){
+    if(data[index] === 0){
+      points.next();
+      for(let amount = data[++index]; amount--; points.next());
+      continue;
+    }
+    const cases = data[index];
+    const [x, y] = points.next().value;
+    output.push({
+      location: new google.maps.LatLng(y, x),
+      weight: Math.log(cases)
+    });
+  }
+  return output;
+}
+
+var map = null, areas = null, largest = null, heatMapData = null, heatmap = null;
 const fetchAPI = api => {
   return fetch(`./data/${api}.json`)
     .then(res => res.json());
@@ -29,25 +85,14 @@ var updateHeatmap = async () => {
   areas = await Promise.all(
     'east,west'.split(',').map(area => fetchAPI(area))
   );
-  largest = areas.map(({ data }) => data
-      .filter((row, index) => row !== 0)
-      .map(row => row
-        .filter((val, index) => !(val === 0 || row[index - 1] === 0))
-        .reduce(...sort))
-      .reduce(...sort))
-    .reduce(...sort);
-  heatMapData = areas.map(area =>
-    parseArea(area, val => {
-      return val;
-//      const weight = Math.log(val) / Math.log(largest);
-      const weight = val / largest;
-      if(weight === -Infinity) return 0;
-      return weight;
-    })
-  ).reduce((output, list) => (output.push(...list), output));
+  heatmapData = [];
+  for(const area of areas){
+    const points = generatePoints(area);
+    heatMapData.push(...points);
+  }
   if(heatmap) heatmap.setMap(null);
   heatmap = new google.maps.visualization.HeatmapLayer({
-    data: heatMapData, dissipating: false, radius: 0.05
+    data: heatMapData, dissipating: false, radius: 0.01
   });
   document.getElementById('lastUpdateAt').innerText = `Last update at: ${new Date().toLocaleString()}`;
   document.getElementById('eastUpdatedAt').innerText = `East Malaysia last updated on: ${new Date(areas[0].updatedAt).toLocaleString()}`;
