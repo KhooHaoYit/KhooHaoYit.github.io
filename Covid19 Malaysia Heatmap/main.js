@@ -86,6 +86,7 @@ var updateHeatmap = async () => {
     'east,west'.split(',').map(area => fetchAPI(area))
   );
   if(heatmaps.length) heatmaps.forEach(hm => hm.setMap(null));
+  heatmaps.splice(0);
   for(const area of areas){
     const heatmap = new google.maps.visualization.HeatmapLayer({
       data: generatePoints(area), dissipating: false, radius: 0.02
