@@ -77,14 +77,25 @@ const generatePoints = ({ area, data }) => {
 }
 
 var map = null, areas = null, largest = null, heatmaps = [];
-const fetchAPI = api => {
-  return fetch(`./data/${api}.json`)
-    .then(res => res.json());
-}
+const base = 'https://raw.githubusercontent.com/KhooHaoYit/Covid19-Malaysia-Heatmap-Data/main/data';
+const fetchAll = () => fetch(`${base}/index.csv`).then(res => res.text()).then(async text => {
+  const lines = text.trim().split('\n');
+  lines.shift();
+  return await Promise.all(lines.map(async line => {
+    const name = line.split(',')[0];
+    const last = await fetch(`${base}/${name}.csv`).then(res => res.text()).then(async text => {
+      const time = new Date(text.trim().split('\n').pop().split(',')[0]).getTime();
+      return await fetch(`${base}/data/${name}.${time}.json`).then(res => res.json());
+    });
+    return { name, last };
+  }));
+});
 var updateHeatmap = async () => {
-  areas = await Promise.all(
-    'east,west'.split(',').map(area => fetchAPI(area))
-  );
+  const data = await fetchAll();
+  const east = data.find(({ name }) => name === 'east');
+  const west = data.find(({ name }) => name === 'west');
+  if(!east || !west) throw new Error('Unable to update Heatmap');
+  areas = [east, west];
   if(heatmaps.length) heatmaps.forEach(hm => hm.setMap(null));
   heatmaps.splice(0);
   for(const area of areas){
