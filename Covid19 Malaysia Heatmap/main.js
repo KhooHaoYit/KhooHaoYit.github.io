@@ -95,7 +95,7 @@ var updateHeatmap = async () => {
   const east = data.find(({ name }) => name === 'east');
   const west = data.find(({ name }) => name === 'west');
   if(!east || !west) throw new Error('Unable to update Heatmap');
-  areas = [east, west];
+  areas = [east.last, west.last];
   if(heatmaps.length) heatmaps.forEach(hm => hm.setMap(null));
   heatmaps.splice(0);
   for(const area of areas){
